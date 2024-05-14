@@ -5,6 +5,16 @@
   text-align: center;
 }
 
+.timer {
+  position: absolute;
+  left: 8px;
+  top: 0px;
+}
+
+.timer p {
+  font-size: xxx-large;
+}
+
 .logo {
   height: 6em;
   padding: 1.5em;
@@ -17,6 +27,17 @@
 .logo.react:hover {
   filter: drop-shadow(0 0 2em #61dafbaa);
 }
+
+
+.rowHover {
+  cursor: pointer; /* Change cursor to pointer on hover */ 
+}
+
+.rowHover:hover {
+  background-color: #f5f5f5; /* Add a hover effect */
+  color: #000;
+}
+
 
 @keyframes logo-spin {
   from {
