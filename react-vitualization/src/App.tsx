@@ -1,18 +1,40 @@
 import { useEffect, useState } from 'react';
 import List from 'react-virtualized/dist/commonjs/List';
-import { Table, Column } from 'react-virtualized/dist/commonjs';
-import { faker } from "@faker-js/faker";
+import { Table, Column, SortDirection } from 'react-virtualized/dist/commonjs';
+
 import 'react-virtualized/styles.css'; // Import CSS for table styles
 import './App.css';
 
 function App() {
   const [people, setPeople] = useState([]);
+  const [sortBy, setSortBy] = useState('');
+  const [sortDirection, setSortDirection] = useState(SortDirection.ASC);
+
+
   const [loading, setLoading] = useState(true);
   const [time, setTime] = useState(new Date);
-  const [sortBy, setSortBy] = useState('id'); // State for the column to sort by
-  const [sortDirection, setSortDirection] = useState('ASC'); // State for the sort direction
+  const [status, setStatus] = useState('Loading...');
+  let connectionAttempts: number = 0;
 
-
+  // Function to handle sorting
+  const sort = ({ sortBy, sortDirection }) => {
+    setSortBy(sortBy);
+    setSortDirection(sortDirection);
+    // Implement sorting logic here based on sortBy and sortDirection
+    // Example sorting logic:
+    const sortedPeople = [...people].sort((a, b) => {
+      const valueA = a[sortBy];
+      const valueB = b[sortBy];
+      if (typeof valueA === 'number' && typeof valueB === 'number') {
+        return sortDirection === SortDirection.ASC ? valueA - valueB : valueB - valueA;
+      } else {
+        const stringA = String(valueA).toUpperCase();
+        const stringB = String(valueB).toUpperCase();
+        return sortDirection === SortDirection.ASC ? stringA.localeCompare(stringB) : stringB.localeCompare(stringA);
+      }
+    });
+    setPeople(sortedPeople);
+  };
 
   //! Worker logic
   // useEffect(() => {
@@ -42,34 +64,46 @@ function App() {
   //   return () => worker.terminate();
   // }, []);
 
-  // useEffect(() => {
-  //   //Update the first person's money every 5 seconds
-  //   const interval = setInterval(() => {
-  //     setPeople((prevPeople) => {
-  //       const newPeople = [...prevPeople];
-  //       newPeople[0].money = faker.finance.amount();
-  //       newPeople[50].money = faker.finance.amount();
-  //       newPeople[500].money = faker.finance.amount();
-  //       return newPeople;
-  //     });
-  //   }, 1000);
-  //   return () => clearInterval(interval);
-  // }, []);
 
   //! Fetch user data
   useEffect(() => {
+
     console.log('fetching data1️⃣')
     const fetchData = async () => {
-      const response = await fetch('http://localhost:3003/initialUser');
-      const data = await response.json();
-      console.log('data', data)
-      console.log('Got data2️⃣')
-     
-      setTimeout(() => {
-        console.log('updating table3️⃣')
-        setPeople(data);
-        setLoading(false);
-      }, 500);
+      try {
+        const response = await fetch('http://localhost:3003/accountSummaryStream');
+        console.log('response⚡', response)
+        const data = await response.json();
+        console.log('data', data)
+        console.log('Got data2️⃣')
+
+        setTimeout(() => {
+          console.log('updating table3️⃣')
+          setPeople(data);
+          setLoading(false);
+        }, 500);
+      } catch (error) {
+        console.log('Error fetching data🚨:', error);
+        if (error instanceof Error && error.message.includes('Failed to fetch')) {
+
+          setStatus('Connection Error!');
+
+          if (connectionAttempts < 3) {
+            setTimeout(() => {
+              setStatus('Retrying...');
+            }, 2000);
+
+            setTimeout(() => {
+              setStatus('Loading...');
+              connectionAttempts++;
+              fetchData();
+            }, 4000);
+          } else {
+            setStatus('Failed to connect to the server!');
+          }
+
+        }
+      }
     };
     fetchData();
   }, []);
@@ -90,30 +124,6 @@ function App() {
   }, []);
 
 
-// Handle sorting
-const handleSort = ({ sortBy, sortDirection }) => {
-  // Update state with sorting parameters
-  setSortBy(sortBy);
-  setSortDirection(sortDirection);
-  // Custom sorting logic based on sortBy and sortDirection
-  const sortedPeople = [...people];
-  sortedPeople.sort((a, b) => {
-    if (sortBy === 'name' || sortBy === 'email' || sortBy === 'phone' || sortBy === 'address') {
-      // Handle sorting for string columns
-      const aValue = typeof a[sortBy] === 'object' ? a[sortBy].city : a[sortBy];
-      const bValue = typeof b[sortBy] === 'object' ? b[sortBy].city : b[sortBy];
-      return sortDirection === 'ASC' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
-    } else if (sortBy === 'id' || sortBy === 'zip') {
-      // Handle sorting for numerical columns
-      return sortDirection === 'ASC' ? a[sortBy] - b[sortBy] : b[sortBy] - a[sortBy];
-    }
-    // Add more conditions for other columns if needed
-    return 0;
-  });
-  // Update state with sorted data
-  setPeople(sortedPeople);
-};
-
 
   return (
     <>
@@ -122,23 +132,10 @@ const handleSort = ({ sortBy, sortDirection }) => {
         <p>{time.toLocaleTimeString()}</p>
       </section>
       {loading ? (
-        <h1>Loading...</h1>
+        <h1>{status}</h1>
       ) : (
         <div>
-
-          {/* Object example
-          address: city: "West Vesta"
-          country: "Dominica"
-          state: "Delaware"
-          street: "E Central Avenue"
-          zip: "51299"
-          [[Prototype]]: Object
-          email: "Demetrius85@yahoo.com"
-          name: "Micaela Bednar"
-          password: "L840UCZvHqS1gu7"
-          phone: "678-319-3837"
-          */}
-
+          <h3>{people.length} users accounts</h3>
           <Table
             width={1000}
             height={600}
@@ -151,55 +148,27 @@ const handleSort = ({ sortBy, sortDirection }) => {
               ...(people[index] as object), // Explicitly type the spread object as an object type
             })}
             onRowClick={handleRowClick}
-            sort={handleSort} // Pass the handleSort function for sorting
             sortBy={sortBy}
             sortDirection={sortDirection}
-            >
+            sort={sort}
+          >
 
 
 
 
 
             {/* columns based of the example object */}
-            <Column label="ID" dataKey="id" width={100} disableSort={false}/>
-            <Column label="Name" dataKey="name" width={200} disableSort={false}/>
-            <Column label="Email" dataKey="email" width={200} disableSort={false}/>
-            <Column label="Phone" dataKey="phone" width={200} disableSort={false}/>
-            <Column
-              label="City"
-              dataKey="address"
-              width={200}
-              disableSort={false}
-              cellDataGetter={({ rowData }) => rowData.address.city}
-            />
-            <Column
-              label="Country"
-              dataKey="address"
-              width={200}
-              disableSort={false}
-              cellDataGetter={({ rowData }) => rowData.address.country}
-            />
-            <Column
-              label="State"
-              dataKey="state"
-              width={200}
-              disableSort={false}
-              cellDataGetter={({ rowData }) => rowData.address.state}
-            />
-            <Column
-              label="Street"
-              dataKey="street"
-              width={200}
-              disableSort={false}
-              cellDataGetter={({ rowData }) => rowData.address.street}
-            />
-            <Column
-              label="Zip"
-              dataKey="zip"
-              width={200}
-              disableSort={false}
-              cellDataGetter={({ rowData }) => rowData.address.zip}
-            />
+            <Column label="ID" dataKey="id" width={100} />
+            <Column label="Name" dataKey="name" width={200} />
+            <Column label="Email" dataKey="email" width={200} />
+            <Column label="Phone" dataKey="phone" width={200} />
+            <Column label="City" dataKey="city" width={200} />
+            <Column label="Country" dataKey="country" width={200} />
+            <Column label="State" dataKey="state" width={200} />
+            <Column label="Street" dataKey="street" width={200} />
+            <Column label="Zip" dataKey="zip" width={200} />
+            <Column label="Password" dataKey="password" width={200} />
+
 
 
           </Table>
